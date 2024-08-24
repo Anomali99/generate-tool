@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="icon"
+      type="image/png"
+      href="{{ url_for('static', filename='img/icon.png') }}"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+    <!-- <link rel="stylesheet" href="/static/css/style.css" /> -->
+    <title>Generate Tool</title>
+  </head>
+  <body>
+    <main>
+      <h1>Generate Tool</h1>
+      <form id="main-form">
+        <label for="word"><span>*</span>Template File (Word)</label>
+        <input type="file" id="word" name="word" accept=".doc,.docx" required />
+        <label for="excel"><span>*</span>Data File (Excel)</label>
+        <input
+          type="file"
+          id="excel"
+          name="excel"
+          accept=".xls,.xlsx"
+          required
+        />
+        <div class="input-container">
+          <label for="name">Custom Filename: </label>
+          <input
+            type="text"
+            name="filename"
+            id="filename"
+            placeholder="filename"
+          />
+        </div>
+        <div class="input-container">
+          <label for="format">Output Type: </label>
+          <input type="text" value="pdf" name="format" id="format" hidden />
+          <label class="switch">
+            <input
+              id="switch"
+              type="checkbox"
+              onclick="changeFormat()"
+              checked
+            />
+            <span class="slider round"></span>
+          </label>
+          <label class="format-label" id="format-label">PDF</label>
+        </div>
+
+        <button id="btn-submit" type="submit">Submit</button>
+      </form>
+      <a href="" id="downloader">download zip</a>
+      <div class="loader-container" id="loader-container">
+        <div class="loader" id="loader"></div>
+        Wait...
+      </div>
+      <a class="help-container" href="" target="_blank">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          height="24px"
+          viewBox="0 -960 960 960"
+          width="24px"
+          fill="currentColor"
+        >
+          <path
+            d="M478-240q21 0 35.5-14.5T528-290q0-21-14.5-35.5T478-340q-21 0-35.5 14.5T428-290q0 21 14.5 35.5T478-240Zm-36-154h74q0-33 7.5-52t42.5-52q26-26 41-49.5t15-56.5q0-56-41-86t-97-30q-57 0-92.5 30T342-618l66 26q5-18 22.5-39t53.5-21q32 0 48 17.5t16 38.5q0 20-12 37.5T506-526q-44 39-54 59t-10 73Zm38 314q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z"
+          />
+        </svg>
+        <p>Help</p>
+      </a>
+    </main>
+
+    <!-- <script src="/static/js/index.js"></script> -->
+    <script src="{{ url_for('static', filename='js/index.js') }}"></script>
+  </body>
+</html>
