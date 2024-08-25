@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify, send_file, abort
-import os, uuid, shutil, pythoncom, tempfile, logging, time
+import os, uuid, shutil, pythoncom, logging
 import win32com.client as win32
 import pandas as pd
 
@@ -25,8 +25,6 @@ def download(userUUID):
 
 @app.route("/generate", methods=["POST"])
 def generate():
-    word_temp_path, excel_temp_path = None, None  
-    wordApp = None
     try:
         pythoncom.CoInitialize()
 
@@ -37,89 +35,91 @@ def generate():
         userUUID = str(uuid.uuid4())
 
         output = os.path.join(app.static_folder, 'output', userUUID)
+        temp_folder = os.path.join(output, 'temp')
         os.makedirs(output, exist_ok=True)
+        os.makedirs(temp_folder, exist_ok=True)
+        word_folder = None
+        if format != 'word':
+            word_folder = os.path.join(output, 'word')
+            os.makedirs(word_folder, exist_ok=True)
 
-        word_temp_path = os.path.join(tempfile.gettempdir(), word_file.filename)
+        word_temp_path = os.path.join(temp_folder, word_file.filename)
         word_file.save(word_temp_path)
 
-        excel_temp_path = os.path.join(tempfile.gettempdir(), excel_file.filename)
+        excel_temp_path = os.path.join(temp_folder, excel_file.filename)
         excel_file.save(excel_temp_path)
-
-        logging.debug(f"Word file saved at: {word_temp_path}")
-        logging.debug(f"Excel file saved at: {excel_temp_path}")
-
-        wordApp = win32.Dispatch("Word.Application")
-        wordApp.Visible = False  # Hide Word window
-        wordApp.DisplayAlerts = 0  # Turn off Word alerts
-
-        doc = wordApp.Documents.Open(word_temp_path)
 
         data_frame = pd.read_excel(excel_temp_path)
         data_list = data_frame.to_dict(orient="records")
 
         for idx, data in enumerate(data_list):
-            for paragraph in doc.Paragraphs:
-                for key, value in data.items():
-                    if f'{{{{{key}}}}}' in paragraph.Range.Text:
-                        paragraph.Range.Text = paragraph.Range.Text.replace(f'{{{{{key}}}}}', str(value))
-
-            for shape in doc.Shapes:
-                if shape.TextFrame.HasText:
-                    for key, value in data.items():
-                        if f'{{{{{key}}}}}' in shape.TextFrame.TextRange.Text:
-                            shape.TextFrame.TextRange.Text = shape.TextFrame.TextRange.Text.replace(f'{{{{{key}}}}}', str(value))
-            
             current_filename = str(idx + 1)
             if filename.strip() != '':
                 try:
                     current_filename = data[filename]
-                except Exception as e:
+                except KeyError:
                     current_filename = str(idx + 1)
-                
+            
             if format == 'word':
-                word_filename = os.path.join(output, f"{current_filename}.docx")
-                doc.SaveAs(word_filename)
+                _generate_handle(data, word_temp_path, output, current_filename)
             else:
-                pdf_filename = os.path.join(output, f"{current_filename}.pdf")
-                doc.SaveAs(pdf_filename, FileFormat=17)
+                word_filename = _generate_handle(data, word_temp_path, word_folder, current_filename)
+                _save_pdf(word_filename,output, current_filename)
 
-        doc.Close()
-        
-        wordApp.Quit()
-        wordApp = None  
-
+        if word_folder != None:
+            shutil.rmtree(temp_folder)
         shutil.make_archive(output, 'zip', output)
-        shutil.rmtree(output)
+        # shutil.rmtree(output)  
 
         return jsonify({
             "status": 200,
             "message": "success",
-            "data" : userUUID
+            "data": userUUID
         }), 200
+
     except Exception as e:
         logging.error(f"Error occurred: {str(e)}")
-        if wordApp:
-            try:
-                wordApp.Quit()
-            except Exception as quit_error:
-                logging.error(f"Failed to quit Word application: {quit_error}")
         return jsonify({
             "status": 500,
             "message": str(e)
         }), 500
-    finally:
-        time.sleep(1) 
-        try:
-            if word_temp_path and os.path.exists(word_temp_path):
-                os.remove(word_temp_path)
-        except Exception as e:
-            logging.error(f"Failed to remove word_temp_path: {str(e)}")
-            
-        try:
-            if excel_temp_path and os.path.exists(excel_temp_path):
-                os.remove(excel_temp_path)
-        except Exception as e:
-            logging.error(f"Failed to remove excel_temp_path: {str(e)}")
+
+
+def _generate_handle(data, word_temp_path, output, current_filename):
+    wordApp = win32.Dispatch("Word.Application")
+    wordApp.Visible = False
+    wordApp.DisplayAlerts = 0
+
+    doc = wordApp.Documents.Open(word_temp_path)
+    for paragraph in doc.Paragraphs:
+        for key, value in data.items():
+            if f'{{{{{key}}}}}' in paragraph.Range.Text:
+                paragraph.Range.Text = paragraph.Range.Text.replace(f'{{{{{key}}}}}', str(value))
+
+    for shape in doc.Shapes:
+        if shape.TextFrame.HasText:
+            for key, value in data.items():
+                if f'{{{{{key}}}}}' in shape.TextFrame.TextRange.Text:
+                    shape.TextFrame.TextRange.Text = shape.TextFrame.TextRange.Text.replace(f'{{{{{key}}}}}', str(value))
+    
+    word_filename = os.path.join(output, f"{current_filename}.docx")
+    doc.SaveAs(word_filename)
+
+    doc.Close()
+    wordApp.Quit()
+
+    return word_filename
+
+
+def _save_pdf(word_filename, output, current_filename):
+    wordApp = win32.Dispatch('Word.Application')
+    wordApp.Visible = False
+    wordApp.DisplayAlerts = 0
+    doc = wordApp.Documents.Open(word_filename)
+    pdf_filename = os.path.join(output, f"{current_filename}.pdf")
+    doc.SaveAs(pdf_filename, FileFormat=17)  
+    doc.Close()
+    wordApp.Quit()
 
 
 if __name__ == "__main__":
