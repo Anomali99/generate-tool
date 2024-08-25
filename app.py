@@ -69,7 +69,7 @@ def generate():
         if word_folder != None:
             shutil.rmtree(temp_folder)
         shutil.make_archive(output, 'zip', output)
-        # shutil.rmtree(output)  
+        shutil.rmtree(output)  
 
         return jsonify({
             "status": 200,
